@@ -85,6 +85,7 @@ public class Camera {
   private final String cameraName;
   private final Size captureSize;
   private final Size previewSize;
+  private final Size streamSize;
   private final boolean enableAudio;
   private final Context applicationContext;
   private final CamcorderProfile recordingProfile;
@@ -152,6 +153,7 @@ public class Camera {
         CameraUtils.getBestAvailableCamcorderProfileForResolutionPreset(cameraName, preset);
     captureSize = new Size(recordingProfile.videoFrameWidth, recordingProfile.videoFrameHeight);
     previewSize = computeBestPreviewSize(cameraName, preset);
+    streamSize = computeBestPreviewSize(cameraName, ResolutionPreset.low);
     cameraZoom =
         new CameraZoom(
             cameraCharacteristics.get(CameraCharacteristics.SENSOR_INFO_ACTIVE_ARRAY_SIZE),
@@ -212,7 +214,7 @@ public class Camera {
 
     // Used to steam image byte data to dart side.
     imageStreamReader =
-        ImageReader.newInstance(previewSize.getWidth(), previewSize.getHeight(), imageFormat, 2);
+        ImageReader.newInstance(streamSize.getWidth(), streamSize.getHeight(), imageFormat, 2);
 
     cameraManager.openCamera(
         cameraName,
@@ -632,7 +634,7 @@ public class Camera {
       prepareMediaRecorder(videoRecordingFile.getAbsolutePath());
       recordingVideo = true;
       createCaptureSession(
-          CameraDevice.TEMPLATE_RECORD, () -> mediaRecorder.start(), mediaRecorder.getSurface());
+          CameraDevice.TEMPLATE_RECORD, () -> mediaRecorder.start(), mediaRecorder.getSurface(), imageStreamReader.getSurface());
       result.success(null);
     } catch (CameraAccessException | IOException e) {
       recordingVideo = false;
@@ -1096,7 +1098,7 @@ public class Camera {
 
   public void startPreviewWithImageStream(EventChannel imageStreamChannel)
       throws CameraAccessException {
-    createCaptureSession(CameraDevice.TEMPLATE_RECORD, imageStreamReader.getSurface());
+        if (mediaRecorder != null) { createCaptureSession(CameraDevice.TEMPLATE_RECORD, imageStreamReader.getSurface(), mediaRecorder.getSurface()); } else { createCaptureSession(CameraDevice.TEMPLATE_RECORD, imageStreamReader.getSurface()); }
 
     imageStreamChannel.setStreamHandler(
         new EventChannel.StreamHandler() {
